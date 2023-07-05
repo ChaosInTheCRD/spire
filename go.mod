@@ -2,6 +2,8 @@ module github.com/spiffe/spire
 
 go 1.20
 
+replace gitlab.com/venafi/vaas/applications/tls-protect/dmi/cli/firefly-ca => ./
+
 require (
 	cloud.google.com/go/iam v1.1.0
 	cloud.google.com/go/kms v1.12.0

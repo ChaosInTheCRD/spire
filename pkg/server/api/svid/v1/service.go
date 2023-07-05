@@ -2,7 +2,12 @@ package svid
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
+	"fmt"
+	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -20,6 +25,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	// dumpster-spire
+	apis "gitlab.com/venafi/vaas/applications/tls-protect/dmi/cli/firefly-ca/pkg/apis/proto/certificates/v1alpha1"
+	csrapi "gitlab.com/venafi/vaas/applications/tls-protect/dmi/cli/firefly-ca/pkg/apis/proto/certificates/v1alpha1/v1alpha1service"
+	"google.golang.org/grpc/credentials"
 )
 
 // RegisterService registers the service on the gRPC server.
@@ -53,6 +63,111 @@ type Service struct {
 	ef api.AuthorizedEntryFetcher
 	td spiffeid.TrustDomain
 	ds datastore.DataStore
+}
+
+// dumpster-spire
+type FireflyAPI struct {
+	client csrapi.CertificateRequestServiceClient
+}
+
+type jwt struct {
+	token string
+}
+
+func (j jwt) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
+	return map[string]string{
+		"authorization": "Bearer " + j.token,
+	}, nil
+}
+
+func (j jwt) RequireTransportSecurity() bool {
+	log.Println("dumpster-spire: Called RequireTransportSecurity")
+	return false
+}
+
+func NewFireflyAPI(url string) FireflyAPI {
+	// jwtCreds, err := jwt.NewFromTokenFile(os.Getenv("TOKEN"))
+	jwtCreds := jwt{os.Getenv("TOKEN")}
+	log.Printf("dumpster-spire: %s", jwtCreds)
+
+	var tlsConf tls.Config
+	tlsConf.InsecureSkipVerify = true
+	creds := credentials.NewTLS(&tlsConf)
+
+	conn, err := grpc.Dial(url,
+		grpc.WithTransportCredentials(creds),
+		grpc.WithPerRPCCredentials(jwtCreds),
+	)
+	if err != nil {
+		log.Fatalf("dumpster-spire: %v", err)
+	}
+
+	client := csrapi.NewCertificateRequestServiceClient(conn)
+	return FireflyAPI{client: client}
+}
+
+func (c *FireflyAPI) Create(ctx context.Context, csr *csrapi.CreateCertificateRequest) ([]byte, error) {
+	resp, err := c.client.Create(ctx, csr)
+	if err != nil {
+		return nil, fmt.Errorf("creation Failure: %w", err)
+	}
+	return resp.GetResponse().CertificateChain, nil
+}
+
+func FireflyCreateSVID(csr *x509.CertificateRequest) ([]*x509.Certificate, error) {
+	csrBlock := pem.Block{
+		Type:  "CERTIFICATE REQUEST",
+		Bytes: csr.RawTBSCertificateRequest,
+	}
+
+	csrPEM := pem.EncodeToMemory(&csrBlock)
+
+	ffapi := NewFireflyAPI("firefly.firefly.svc.cluster.local:8081")
+	fcsr := csrapi.CreateCertificateSigningRequest{
+		Request: &apis.CertificateSigningRequest{
+			Request: csrPEM,
+			// KeyType: &keytype,
+			// ValidityPeriod: &valid,
+			PolicyName: "Demo Policy",
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+	defer cancel()
+
+	certchain, err := ffapi.Create(ctx, &fcsr)
+	if err != nil {
+		log.Fatalf("Oops: %v\n", err)
+	}
+
+	return convertResponseToCerts(certchain), nil
+}
+
+func convertResponseToCerts(chain []byte) []*x509.Certificate {
+	var pemBlocks []*pem.Block
+
+	for {
+		pemBlock, rest := pem.Decode(chain)
+		if pemBlock == nil {
+			break
+		}
+		pemBlocks = append(pemBlocks, pemBlock)
+		chain = rest
+	}
+
+	// Step 2: Parse each PEM block and construct x509.Certificate objects
+	var certs []*x509.Certificate
+
+	for _, pemBlock := range pemBlocks {
+		cert, err := x509.ParseCertificate(pemBlock.Bytes)
+		if err != nil {
+			log.Printf("Failed to parse certificate: %v", err)
+			continue
+		}
+		certs = append(certs, cert)
+	}
+
+	return certs
 }
 
 func (s *Service) MintX509SVID(ctx context.Context, req *svidv1.MintX509SVIDRequest) (*svidv1.MintX509SVIDResponse, error) {
@@ -97,13 +212,7 @@ func (s *Service) MintX509SVID(ctx context.Context, req *svidv1.MintX509SVIDRequ
 		}
 	}
 
-	x509SVID, err := s.ca.SignWorkloadX509SVID(ctx, ca.WorkloadX509SVIDParams{
-		SPIFFEID:  id,
-		PublicKey: csr.PublicKey,
-		TTL:       time.Duration(req.Ttl) * time.Second,
-		DNSNames:  csr.DNSNames,
-		Subject:   csr.Subject,
-	})
+	x509SVID, err := FireflyCreateSVID(csr)
 	if err != nil {
 		return nil, api.MakeErr(log, codes.Internal, "failed to sign X509-SVID", err)
 	}
@@ -251,28 +360,23 @@ func (s *Service) newX509SVID(ctx context.Context, param *svidv1.NewX509SVIDPara
 	}
 	log = log.WithField(telemetry.SPIFFEID, spiffeID.String())
 
-	x509Svid, err := s.ca.SignWorkloadX509SVID(ctx, ca.WorkloadX509SVIDParams{
-		SPIFFEID:  spiffeID,
-		PublicKey: csr.PublicKey,
-		DNSNames:  entry.DnsNames,
-		TTL:       time.Duration(entry.X509SvidTtl) * time.Second,
-	})
+	x509SVID, err := FireflyCreateSVID(csr)
 	if err != nil {
 		return &svidv1.BatchNewX509SVIDResponse_Result{
 			Status: api.MakeStatus(log, codes.Internal, "failed to sign X509-SVID", err),
 		}
 	}
 
-	log.WithField(telemetry.Expiration, x509Svid[0].NotAfter.Format(time.RFC3339)).
-		WithField(telemetry.SerialNumber, x509Svid[0].SerialNumber.String()).
+	log.WithField(telemetry.Expiration, x509SVID[0].NotAfter.Format(time.RFC3339)).
+		WithField(telemetry.SerialNumber, x509SVID[0].SerialNumber.String()).
 		WithField(telemetry.RevisionNumber, entry.RevisionNumber).
 		Debug("Signed X509 SVID")
 
 	return &svidv1.BatchNewX509SVIDResponse_Result{
 		Svid: &types.X509SVID{
 			Id:        entry.SpiffeId,
-			CertChain: x509util.RawCertsFromCertificates(x509Svid),
-			ExpiresAt: x509Svid[0].NotAfter.Unix(),
+			CertChain: x509util.RawCertsFromCertificates(x509SVID),
+			ExpiresAt: x509SVID[0].NotAfter.Unix(),
 		},
 		Status: api.OK(),
 	}
