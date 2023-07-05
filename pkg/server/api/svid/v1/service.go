@@ -67,7 +67,7 @@ type Service struct {
 
 // dumpster-spire
 type FireflyAPI struct {
-	client csrapi.CertificateRequestServiceClient
+	client csrapi.CertificateSigningRequestServiceClient
 }
 
 type jwt struct {
@@ -102,11 +102,11 @@ func NewFireflyAPI(url string) FireflyAPI {
 		log.Fatalf("dumpster-spire: %v", err)
 	}
 
-	client := csrapi.NewCertificateRequestServiceClient(conn)
+	client := csrapi.NewCertificateSigningRequestServiceClient(conn)
 	return FireflyAPI{client: client}
 }
 
-func (c *FireflyAPI) Create(ctx context.Context, csr *csrapi.CreateCertificateRequest) ([]byte, error) {
+func (c *FireflyAPI) Create(ctx context.Context, csr *csrapi.CreateCertificateSigningRequest) ([]byte, error) {
 	resp, err := c.client.Create(ctx, csr)
 	if err != nil {
 		return nil, fmt.Errorf("creation Failure: %w", err)
