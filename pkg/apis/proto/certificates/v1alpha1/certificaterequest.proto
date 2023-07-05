@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package certificates.v1alpha1;
+
+import "v1alpha1/keytype.proto";
+import "v1alpha1/subject.proto";
+import "v1alpha1/usages.proto";
+
+option go_package = "gitlab.com/venafi/vaas/applications/tls-protect/dmi/cli/firefly-ca/pkg/apis/proto/certificates/v1alpha1;v1alpha1";
+
+// CertificateRequest is a single certificate signing request and private key
+// from a client. A request _must_ include at least a PEM encoded X.509
+// certificate signing request, but should _not_ be signed by a client's
+// private key . A client may optionally request other certificate attributes
+// that cannot be encoded inside a certificate signing request. These
+// additional attributes may or may not be honored based on the server's
+// configuration and authorization policy.
+// Requests may be denied by the server following a authorization review.
+message CertificateRequest {
+  // subject is an optional field used to specify desired subject distinguished name for the issued certificate.
+  optional certificates.v1alpha1.Subject subject = 1;
+
+  // subject is an optional field used to specify desired subject alternate names for the issued certificate.
+  optional certificates.v1alpha1.AltNames alt_names = 2;
+
+  // key_type is an optional field used to specify parameters for the public and private keys.
+  // The public key will be used to create the CSR which will be signed.
+  // The private key will be returned to the client together with the issued certificate.
+  optional KeyType key_type = 3;
+
+  // validity_period is an optional field containing ISO8601 formatted duration the client wishes
+  // the resulting X.509 certificate is signed for.
+  // The specified Policy has same attribute, so the shorter duration will be used indeed.
+  optional string validity_period = 4;
+
+  // policy_name contains the name of the Policy which the client wishes to request against.
+  string policy_name = 5;
+}
+
+// CertificateRequestResponse is the server's response to a single certificate
+// request from a client. The message contains a single PEM encoded X.509
+// certificate chain, including the client's requested leaf certificate. The
+// server will never return the root Certificate Authority (CA). The server may
+// respond with a single certificate if the root CA is the issuer.
+// The server will also respond with the client's PEM encoded private key,
+// which will be paired with the returned signed leaf certificate.
+// The leaf certificate is always the first certificate in the chain.
+// The chain will always be in order of increasing issuer authority.
+message CertificateRequestResponse {
+  // certificate_chain is the PEM encoded X.509 certificate chain returned in
+  // response to a certificate signing request.
+  // certificate_chain will never contain the root CA.
+  // The signed client's leaf certificate will always be first in the chain.
+  // The chain will always be in order of increasing issuer authority.
+  bytes certificate_chain = 1;
+
+  // private_key is the PEM encoded private key which is paired with the
+  // client's leaf certificate at the head of the certificate_chain.
+  bytes private_key = 2;
+}

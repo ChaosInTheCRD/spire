@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package certificates.v1alpha1;
+
+option go_package = "gitlab.com/venafi/vaas/applications/tls-protect/dmi/cli/firefly-ca/pkg/apis/proto/certificates/v1alpha1;v1alpha1";
+
+// KeyUsage is the X.509 certificate key usage.
+// https://datatracker.ietf.org/doc/html/rfc2459#section-4.2.1.3
+enum KeyUsage {
+  // KEY_USAGE_SIGNING is X.509 "signing".
+  KEY_USAGE_SIGNING = 0;
+
+  // KEY_USAGE_DIGITAL_SIGNATURE is X.509 "digital signature".
+	KEY_USAGE_DIGITAL_SIGNATURE = 1;
+
+  // KEY_USAGE_CONTENT_COMMITMENT is X.509 "content commitment".
+	KEY_USAGE_CONTENT_COMMITMENT = 2;
+
+  // KEY_USAGE_KEY_ENCIPHERMENT is X.509 "key encipherment".
+	KEY_USAGE_KEY_ENCIPHERMENT = 3;
+
+  // KEY_USAGE_KEY_AGREEMENT is X.509 "key agreement".
+	KEY_USAGE_KEY_AGREEMENT = 4;
+
+  // KEY_USAGE_DATA_ENCIPHERMENT is X.509 "data encipherment".
+	KEY_USAGE_DATA_ENCIPHERMENT = 5;
+
+  // KEY_USAGE_CRYPTOGRAM_ENCRYPTION is X.509 "cert sign".
+	KEY_USAGE_CERT_SIGN = 6;
+
+  // KEY_USAGE_CRL_SIGN is X.509 "crl sign".
+	KEY_USAGE_CRL_SIGN = 7;
+
+  // KEY_USAGE_ENCIPHER_ONLY is X.509 "encipher only".
+	KEY_USAGE_ENCIPHER_ONLY = 8;
+
+  // KEY_USAGE_DECIPHER_ONLY is X.509 "decipher only".
+	KEY_USAGE_DECIPHER_ONLY = 9;
+}
+
+// ExtendedKeyUsage is the X.509 well-known certificate extended key usage.
+// https://datatracker.ietf.org/doc/html/rfc2459#section-4.2.1.13
+enum ExtendedKeyUsage {
+  // EXTENDED_KEY_USAGE_SERVER_AUTH is X.509 "any".
+  EXTENDED_KEY_USAGE_ANY = 0;
+
+    // EXTENDED_KEY_USAGE_SERVER_AUTH is X.509 "server auth".
+	EXTENDED_KEY_USAGE_SERVER_AUTH = 1;
+
+  // EXTENDED_KEY_USAGE_CLIENT_AUTH is X.509 "client auth".
+	EXTENDED_KEY_USAGE_CLIENT_AUTH = 2;
+
+  // EXTENDED_KEY_USAGE_CODE_SIGNING is X.509 "code signing".jo
+	EXTENDED_KEY_USAGE_CODE_SIGNING = 3;
+
+  // EXTENDED_KEY_USAGE_EMAIL_PROTECTION is X.509 "email protection".
+	EXTENDED_KEY_USAGE_EMAIL_PROTECTION = 4;
+
+  // EXTENDED_KEY_USAGE_SMIME is X.509 "s/mime".
+	EXTENDED_KEY_USAGE_SMIME = 5;
+
+  // EXTENDED_KEY_USAGE_IPSECEN_SYSTEM is X.509 "ipsec end system".
+	EXTENDED_KEY_USAGE_IPSEC_END_SYSTEM = 6;
+
+  // EXTENDED_KEY_USAGE_IPSEC_TUNNEL is X.509 "ipsec tunnel".
+	EXTENDED_KEY_USAGE_IPSEC_TUNNEL = 7;
+
+  // EXTENDED_KEY_USAGE_IPSEC_USER is X.509 "ipsec user".
+	EXTENDED_KEY_USAGE_IPSEC_USER = 8;
+
+  // EXTENDED_KEY_USAGE_TIMESTAMPING is X.509 "timestamping".
+	EXTENDED_KEY_USAGE_TIMESTAMPING = 9;
+
+  // EXTENDED_KEY_USAGE_OCSP_SIGNING is X.509 "ocsp signing".
+	EXTENDED_KEY_USAGE_OCSP_SIGNING = 10;
+
+  // EXTENDED_KEY_USAGE_MICROSOFT_SGC is X.509 "microsoft sgc".
+	EXTENDED_KEY_USAGE_MICROSOFT_SGC = 11;
+
+  // EXTENDED_KEY_USAGE_NETSCAPE_SGC is X.509 "netscape sgc".
+	EXTENDED_KEY_USAGE_NETSCAPE_SGC = 12;
+}

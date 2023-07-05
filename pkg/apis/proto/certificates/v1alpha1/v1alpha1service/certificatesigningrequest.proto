@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package certificates.service.v1alpha1;
+
+import "v1alpha1/certificatesigningrequest.proto";
+
+option go_package = "gitlab.com/venafi/vaas/applications/tls-protect/dmi/cli/firefly-ca/pkg/apis/proto/certificates/v1alpha1/v1alpha1service;v1alpha1service";
+
+// CertificateSigningRequestService exposes requesting a certificate from the
+// server using a pre-generated private key.
+service CertificateSigningRequestService {
+  // Create creates a new CertificateSigningRequest against the server,
+  // returning a signed certificate chain.
+  rpc Create(CreateCertificateSigningRequest) returns (CreateCertificateSigningRequestResponse);
+}
+
+// CreateCertificateSigningRequest contains an X.509 certificate signing
+// request from the client which has been been signed by the client's
+// pre-generated private key.
+message CreateCertificateSigningRequest {
+  // request contains the X.509 certificate signing request and certificate
+  // attributes.
+  certificates.v1alpha1.CertificateSigningRequest request = 1;
+}
+
+// CreateCertificateSigningRequestResponse is the response to the client with a
+// signed certificate chain containing their signed certificate request.
+message CreateCertificateSigningRequestResponse {
+  // response contains the certificate chain in response to the client's
+  // certificate signing request.
+  certificates.v1alpha1.CertificateSigningRequestResponse response = 1;
+}
+

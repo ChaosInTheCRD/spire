@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package certificates.service.v1alpha1;
+
+import "v1alpha1/certificaterequest.proto";
+
+option go_package = "gitlab.com/venafi/vaas/applications/tls-protect/dmi/cli/firefly-ca/pkg/apis/proto/certificates/v1alpha1/v1alpha1service;v1alpha1service";
+
+// CertificateRequestService exposes requesting a private key and certificate
+// from the server. The leaf certificate returned will be paired with that
+// private key.
+service CertificateRequestService {
+  // Create creates a new CertificateRequest against the server, returning a
+  // private key and signed certificate chain.
+  rpc Create(CreateCertificateRequest) returns (CreateCertificateRequestResponse);
+}
+
+// CreateCertificateRequest contains an X.509 certificate signing request from
+// the client, optionally including attributes about the private key that the
+// server should generate.
+message CreateCertificateRequest {
+  // request contains the X.509 certificate signing request and configuration
+  // for how the server should generate the private key.
+  certificates.v1alpha1.CertificateRequest request = 1;
+}
+
+// CreateCertificateRequestResponse is the response to the client with a signed
+// certificate chain containing their signed certificate request and the paired
+// private key the server generated.
+message CreateCertificateRequestResponse {
+  // response contains the private key and certificate chain in response to the
+  // client's certificate request.
+  certificates.v1alpha1.CertificateRequestResponse response = 1;
+}
+

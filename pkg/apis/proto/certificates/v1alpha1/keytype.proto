@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package certificates.v1alpha1;
+
+option go_package = "gitlab.com/venafi/vaas/applications/tls-protect/dmi/cli/firefly-ca/pkg/apis/proto/certificates/v1alpha1;v1alpha1";
+
+// KeyType defines the parameters for the public and private keys.
+// It encodes the key algorithm(e.g. RSA algorithm) and some additional clarification(e.g. 2048 key size)
+enum KeyType {
+  // RSA_2048 is the Rivest–Shamir–Adleman public key algorithm with key size of 2048
+  RSA_2048 = 0;
+  // RSA_3072 is the Rivest–Shamir–Adleman public key algorithm with key size of 3072
+  RSA_3072 = 1;
+  // RSA_4096 is the Rivest–Shamir–Adleman public key algorithm with key size of 4096
+  RSA_4096 = 2;
+  // EC_P256 is the Elliptic Curve Digital Signature Algorithm, curve type P256
+  // https://en.wikipedia.org/wiki/Elliptic-curve_cryptography
+  EC_P256 = 3;
+  // EC_P384 is the Elliptic Curve Digital Signature Algorithm, curve type P384
+  // https://en.wikipedia.org/wiki/Elliptic-curve_cryptography
+  EC_P384 = 4;
+  // EC_P521 is the Elliptic Curve Digital Signature Algorithm, curve type P521
+  // https://en.wikipedia.org/wiki/Elliptic-curve_cryptography
+  EC_P521 = 5;
+  // EC_ED25519 is a EdDSA using Curve25519
+  // https://en.wikipedia.org/wiki/EdDSA#Ed25519
+  EC_ED25519 = 6;
+}
