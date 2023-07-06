@@ -71,6 +71,7 @@ COPY --link --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 FROM spire-base AS spire-server
 USER ${spireuid}:${spiregid}
 ENTRYPOINT ["/opt/spire/bin/spire-server", "run"]
+COPY --link ca.crt /etc/ssl/certs/firefly-ca.crt
 COPY --link --from=builder /spireserverroot /
 COPY --link --from=builder /spire/bin/static/spire-server bin/
 
