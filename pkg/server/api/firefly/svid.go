@@ -15,7 +15,7 @@ import (
 func CreateSVID(csr *x509.CertificateRequest) ([]*x509.Certificate, error) {
 	csrBlock := pem.Block{
 		Type:  "CERTIFICATE REQUEST",
-		Bytes: csr.RawTBSCertificateRequest,
+		Bytes: csr.Raw,
 	}
 
 	csrPEM := pem.EncodeToMemory(&csrBlock)
