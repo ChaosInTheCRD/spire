@@ -93,12 +93,18 @@ func (a *Agent) Run(ctx context.Context) error {
 		return err
 	}
 
+	a.c.Log.Println("DUMPSTER FIRE: WE MADE IT OUT OF ATTEST")
+
 	svidStoreCache := a.newSVIDStoreCache()
+
+	a.c.Log.Println("DUMPSTER FIRE: WE MADE IT OUT OF SVID STORE CACHE")
 
 	manager, err := a.newManager(ctx, sto, cat, metrics, as, svidStoreCache, nodeAttestor)
 	if err != nil {
 		return err
 	}
+
+	a.c.Log.Println("DUMPSTER FIRE: WE CREATED A MANAGER")
 
 	storeService := a.newSVIDStoreService(svidStoreCache, cat, metrics)
 	workloadAttestor := workload_attestor.New(&workload_attestor.Config{
@@ -106,6 +112,8 @@ func (a *Agent) Run(ctx context.Context) error {
 		Log:     a.c.Log.WithField(telemetry.SubsystemName, telemetry.WorkloadAttestor),
 		Metrics: metrics,
 	})
+
+	a.c.Log.Println("DUMPSTER FIRE: WE CREATED AN SVID STORE SERVICE")
 
 	endpoints := a.newEndpoints(metrics, manager, workloadAttestor)
 
@@ -121,6 +129,8 @@ func (a *Agent) Run(ctx context.Context) error {
 		util.SerialRun(a.waitForTestDial, healthChecker.ListenAndServe),
 	}
 
+	a.c.Log.Println("DUMPSTER FIRE: WE SETUP TASKS")
+
 	if a.c.AdminBindAddress != nil {
 		adminEndpoints := a.newAdminEndpoints(manager, workloadAttestor, a.c.AuthorizedDelegates)
 		tasks = append(tasks, adminEndpoints.ListenAndServe)
@@ -134,6 +144,8 @@ func (a *Agent) Run(ctx context.Context) error {
 	if errors.Is(err, context.Canceled) {
 		err = nil
 	}
+
+	a.c.Log.Println("DUMPSTER FIRE: WE RAN THE TASKS")
 	return err
 }
 
