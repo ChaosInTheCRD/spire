@@ -336,7 +336,7 @@ container-builder:
 define image_rule
 .PHONY: $1
 $1: $3 container-builder
-	echo Building docker image $2 $(PLATFORM)…
+	@echo Building docker image $2 $(PLATFORM)…
 	$(E)docker buildx build \
 		--platform $(PLATFORMS) \
 		--build-arg goversion=$(go_version_full) \
@@ -369,7 +369,7 @@ load-images:
 define windows_image_rule
 .PHONY: $1
 $1: $3
-	echo Building docker image $2…
+	@echo Building docker image $2…
 	$(E)docker build \
 		--build-arg goversion=$(go_version_full) \
 		--target $2 \
