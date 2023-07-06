@@ -36,7 +36,6 @@ func (j jwt) RequireTransportSecurity() bool {
 func NewFireflyAPI(url string) FireflyAPI {
 	// jwtCreds, err := jwt.NewFromTokenFile(os.Getenv("TOKEN"))
 	jwtCreds := jwt{os.Getenv("TOKEN")}
-	log.Printf("dumpster-spire: %s", jwtCreds)
 
 	var tlsConf tls.Config
 	tlsConf.InsecureSkipVerify = true
