@@ -181,6 +181,12 @@ func (m *manager) Initialize(ctx context.Context) error {
 		m.deleteSVID()
 	}
 
+	if err != nil {
+		m.c.Log.Printf("DUMPSTER SPIRE: PROBLEM WITH SYNCHRONIZE  %s", err.Error())
+	} else {
+		m.c.Log.Println("DUMPSTER SPIRE: SYNC IS NOT THE PROBLEM")
+	}
+
 	m.c.Log.Println("DUMPSTER SPIRE: FINISHED INITIALIZING...")
 	return err
 }
