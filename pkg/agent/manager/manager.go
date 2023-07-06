@@ -159,6 +159,7 @@ func (m *manager) Initialize(ctx context.Context) error {
 	m.c.Log.Println("DUMPSTER SPIRE: INITIALIZING MANAGER...")
 	m.storeSVID(m.svid.State().SVID, m.svid.State().Reattestable)
 	m.storeBundle(m.cache.Bundle())
+	m.c.Log.Println("DUMPSTER SPIRE: FINISHED STORING STUFF...")
 
 	synchronizeBackoffMaxInterval := synchronizeMaxIntervalMultiple * m.c.SyncInterval
 	if synchronizeBackoffMaxInterval > synchronizeMaxInterval {
@@ -167,6 +168,8 @@ func (m *manager) Initialize(ctx context.Context) error {
 	m.synchronizeBackoff = backoff.NewBackoff(m.clk, m.c.SyncInterval, backoff.WithMaxInterval(synchronizeBackoffMaxInterval))
 	m.svidSyncBackoff = backoff.NewBackoff(m.clk, cache.SVIDSyncInterval, backoff.WithMaxInterval(maxSVIDSyncInterval))
 	m.csrSizeLimitedBackoff = backoff.NewSizeLimitedBackOff(limits.SignLimitPerIP)
+
+	m.c.Log.Println("DUMPSTER SPIRE: FINISHED SYNCHRONIZATION...")
 
 	err := m.synchronize(ctx)
 	if nodeutil.ShouldAgentReattest(err) {
@@ -177,6 +180,8 @@ func (m *manager) Initialize(ctx context.Context) error {
 		m.c.Log.WithError(err).Error("Agent is banned: removing SVID and shutting down")
 		m.deleteSVID()
 	}
+
+	m.c.Log.Println("DUMPSTER SPIRE: FINISHED INITIALIZING...")
 	return err
 }
 
