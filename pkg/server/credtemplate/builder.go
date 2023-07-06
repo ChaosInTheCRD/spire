@@ -256,6 +256,15 @@ func (b *Builder) BuildServerX509SVIDTemplate(ctx context.Context, params Server
 	return tmpl, nil
 }
 
+func (b *Builder) BuildServerX509SVIDCSR(ctx context.Context, params ServerX509SVIDParams) (*x509.CertificateRequest, error) {
+	tmpl, err := b.buildX509SVIDCSR(b.serverID, params.PublicKey, params.ParentChain, pkix.Name{}, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	return tmpl, nil
+}
+
 func (b *Builder) BuildAgentX509SVIDTemplate(ctx context.Context, params AgentX509SVIDParams) (*x509.Certificate, error) {
 	tmpl, err := b.buildX509SVIDTemplate(params.SPIFFEID, params.PublicKey, params.ParentChain, pkix.Name{}, b.config.AgentSVIDTTL)
 	if err != nil {
@@ -398,6 +407,33 @@ func (b *Builder) buildX509SVIDTemplate(spiffeID spiffeid.ID, publicKey crypto.P
 	return tmpl, nil
 }
 
+func (b *Builder) buildX509SVIDCSR(spiffeID spiffeid.ID, publicKey crypto.PublicKey, parentChain []*x509.Certificate, subject pkix.Name, ttl time.Duration) (*x509.CertificateRequest, error) {
+	if len(parentChain) == 0 {
+		return nil, errors.New("parent chain required to build X509-SVID template")
+	}
+	if spiffeID.IsZero() {
+		return nil, errors.New("invalid X509-SVID ID: cannot be empty")
+	}
+	if err := api.VerifyTrustDomainMemberID(b.config.TrustDomain, spiffeID); err != nil {
+		return nil, fmt.Errorf("invalid X509-SVID ID: %w", err)
+	}
+
+	tmpl, err := b.buildBaseCSRTemplate(spiffeID, publicKey, parentChain)
+	if err != nil {
+		return nil, err
+	}
+
+	tmpl.Subject = b.config.X509SVIDSubject
+	if subject.String() != "" {
+		tmpl.Subject = subject
+	}
+
+	// Append the unique ID to the subject, unless disabled
+	tmpl.Subject.ExtraNames = append(tmpl.Subject.ExtraNames, x509svid.UniqueIDAttribute(spiffeID))
+
+	return tmpl, nil
+}
+
 func (b *Builder) buildBaseTemplate(spiffeID spiffeid.ID, publicKey crypto.PublicKey, parentChain []*x509.Certificate) (*x509.Certificate, error) {
 	serialNumber, err := b.config.NewSerialNumber()
 	if err != nil {
@@ -426,6 +462,13 @@ func (b *Builder) buildBaseTemplate(spiffeID spiffeid.ID, publicKey crypto.Publi
 	}, nil
 }
 
+func (b *Builder) buildBaseCSRTemplate(spiffeID spiffeid.ID, publicKey crypto.PublicKey, parentChain []*x509.Certificate) (*x509.CertificateRequest, error) {
+	return &x509.CertificateRequest{
+		URIs:      []*url.URL{spiffeID.URL()},
+		PublicKey: publicKey,
+	}, nil
+}
+
 func (b *Builder) computeX509CALifetime(parentChain []*x509.Certificate, ttl time.Duration) (notBefore, notAfter time.Time) {
 	if ttl <= 0 {
 		ttl = b.config.X509CATTL
@@ -447,6 +490,7 @@ func x509CAAttributesFromTemplate(tmpl *x509.Certificate) credentialcomposer.X50
 		ExtraExtensions:   tmpl.ExtraExtensions,
 	}
 }
+
 func x509SVIDAttributesFromTemplate(tmpl *x509.Certificate) credentialcomposer.X509SVIDAttributes {
 	return credentialcomposer.X509SVIDAttributes{
 		Subject:         tmpl.Subject,

@@ -3,6 +3,7 @@ package ca
 import (
 	"context"
 	"crypto"
+	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"errors"
@@ -18,6 +19,7 @@ import (
 	"github.com/spiffe/spire/pkg/common/telemetry"
 	telemetry_server "github.com/spiffe/spire/pkg/common/telemetry/server"
 	"github.com/spiffe/spire/pkg/common/x509util"
+	"github.com/spiffe/spire/pkg/server/api/firefly"
 	"github.com/spiffe/spire/pkg/server/credtemplate"
 	"github.com/spiffe/spire/pkg/server/credvalidator"
 	"gopkg.in/square/go-jose.v2"
@@ -32,7 +34,7 @@ const (
 // ServerCA is an interface for Server CAs
 type ServerCA interface {
 	SignDownstreamX509CA(ctx context.Context, params DownstreamX509CAParams) ([]*x509.Certificate, error)
-	SignServerX509SVID(ctx context.Context, params ServerX509SVIDParams) ([]*x509.Certificate, error)
+	SignServerX509SVID(ctx context.Context, signer crypto.Signer) ([]*x509.Certificate, error)
 	SignAgentX509SVID(ctx context.Context, params AgentX509SVIDParams) ([]*x509.Certificate, error)
 	SignWorkloadX509SVID(ctx context.Context, params WorkloadX509SVIDParams) ([]*x509.Certificate, error)
 	SignWorkloadJWTSVID(ctx context.Context, params WorkloadJWTSVIDParams) (string, error)
@@ -217,30 +219,38 @@ func (ca *CA) SignDownstreamX509CA(ctx context.Context, params DownstreamX509CAP
 	return makeCertChain(x509CA, downstreamCA), nil
 }
 
-func (ca *CA) SignServerX509SVID(ctx context.Context, params ServerX509SVIDParams) ([]*x509.Certificate, error) {
-	x509CA, caChain, err := ca.getX509CA()
+func (ca *CA) SignServerX509SVID(ctx context.Context, signer crypto.Signer) ([]*x509.Certificate, error) {
+	_, caChain, err := ca.getX509CA()
 	if err != nil {
 		return nil, err
 	}
 
-	template, err := ca.c.CredBuilder.BuildServerX509SVIDTemplate(ctx, credtemplate.ServerX509SVIDParams{
+	template, err := ca.c.CredBuilder.BuildServerX509SVIDCSR(ctx, credtemplate.ServerX509SVIDParams{
 		ParentChain: caChain,
-		PublicKey:   params.PublicKey,
+		PublicKey:   signer.Public(),
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	svidChain, err := ca.signX509SVID(x509CA, template)
+	csrByte, err := x509.CreateCertificateRequest(rand.Reader, template, signer)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := ca.c.CredValidator.ValidateServerX509SVID(svidChain[0]); err != nil {
+	csr, err := x509.ParseCertificateRequest(csrByte)
+
+	ca.c.Log.Println("DUMPSTER SPIRE: Creating X509 SVID with Firefly!")
+	x509SVID, err := firefly.CreateSVID(csr)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ca.c.CredValidator.ValidateServerX509SVID(x509SVID[0]); err != nil {
 		return nil, fmt.Errorf("invalid server X509-SVID: %w", err)
 	}
 
-	return svidChain, nil
+	return x509SVID, nil
 }
 
 func (ca *CA) SignAgentX509SVID(ctx context.Context, params AgentX509SVIDParams) ([]*x509.Certificate, error) {

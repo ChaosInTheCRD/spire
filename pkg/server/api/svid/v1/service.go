@@ -3,6 +3,7 @@ package svid
 import (
 	"context"
 	"crypto/x509"
+	"log"
 	"strings"
 	"time"
 
@@ -98,6 +99,7 @@ func (s *Service) MintX509SVID(ctx context.Context, req *svidv1.MintX509SVIDRequ
 		}
 	}
 
+	log.Println("DUMPSTER SPIRE: Creating X509 SVID with Firefly!")
 	x509SVID, err := firefly.CreateSVID(csr)
 	if err != nil {
 		return nil, api.MakeErr(log, codes.Internal, "failed to sign X509-SVID", err)
@@ -246,6 +248,7 @@ func (s *Service) newX509SVID(ctx context.Context, param *svidv1.NewX509SVIDPara
 	}
 	log = log.WithField(telemetry.SPIFFEID, spiffeID.String())
 
+	log.Println("DUMPSTER SPIRE: Creating X509 SVID with Firefly!")
 	x509SVID, err := firefly.CreateSVID(csr)
 	if err != nil {
 		return &svidv1.BatchNewX509SVIDResponse_Result{
@@ -345,60 +348,63 @@ func (s *Service) NewJWTSVID(ctx context.Context, req *svidv1.NewJWTSVIDRequest)
 }
 
 func (s *Service) NewDownstreamX509CA(ctx context.Context, req *svidv1.NewDownstreamX509CARequest) (*svidv1.NewDownstreamX509CAResponse, error) {
-	log := rpccontext.Logger(ctx)
-	rpccontext.AddRPCAuditFields(ctx, logrus.Fields{
-		telemetry.Csr:           api.HashByte(req.Csr),
-		telemetry.TrustDomainID: s.td.IDString(),
-	})
+	// log := rpccontext.Logger(ctx)
+	// rpccontext.AddRPCAuditFields(ctx, logrus.Fields{
+	// 	telemetry.Csr:           api.HashByte(req.Csr),
+	// 	telemetry.TrustDomainID: s.td.IDString(),
+	// })
+	//
+	// if err := rpccontext.RateLimit(ctx, 1); err != nil {
+	// 	return nil, api.MakeErr(log, status.Code(err), "rejecting request due to downstream CA signing rate limit", err)
+	// }
+	//
+	// downstreamEntries, isDownstream := rpccontext.CallerDownstreamEntries(ctx)
+	// if !isDownstream {
+	// 	return nil, api.MakeErr(log, codes.Internal, "caller is not a downstream workload", nil)
+	// }
+	//
+	// entry := downstreamEntries[0]
+	//
+	// csr, err := parseAndCheckCSR(ctx, req.Csr)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// x509CASvid, err := s.ca.SignDownstreamX509CA(ctx, ca.DownstreamX509CAParams{
+	// 	PublicKey: csr.PublicKey,
+	// 	TTL:       time.Duration(entry.X509SvidTtl) * time.Second,
+	// })
+	// if err != nil {
+	// 	return nil, api.MakeErr(log, codes.Internal, "failed to sign downstream X.509 CA", err)
+	// }
+	//
+	// log.WithFields(logrus.Fields{
+	// 	telemetry.SPIFFEID:   x509CASvid[0].URIs[0].String(),
+	// 	telemetry.Expiration: x509CASvid[0].NotAfter.Format(time.RFC3339),
+	// }).Debug("Signed X509 CA SVID")
+	//
+	// bundle, err := s.ds.FetchBundle(ctx, s.td.IDString())
+	// if err != nil {
+	// 	return nil, api.MakeErr(log, codes.Internal, "failed to fetch bundle", err)
+	// }
+	//
+	// if bundle == nil {
+	// 	return nil, api.MakeErr(log, codes.NotFound, "bundle not found", nil)
+	// }
+	//
+	rawRootCerts := make([][]byte, 0)
+	certChain := make([][]byte, 0)
+	// for _, cert := range bundle.RootCas {
+	// 	rawRootCerts = append(rawRootCerts, cert.DerBytes)
+	// }
+	// rpccontext.AuditRPCWithFields(ctx, logrus.Fields{
+	// 	telemetry.ExpiresAt: x509CASvid[0].NotAfter.Unix(),
+	// })
+	//
 
-	if err := rpccontext.RateLimit(ctx, 1); err != nil {
-		return nil, api.MakeErr(log, status.Code(err), "rejecting request due to downstream CA signing rate limit", err)
-	}
-
-	downstreamEntries, isDownstream := rpccontext.CallerDownstreamEntries(ctx)
-	if !isDownstream {
-		return nil, api.MakeErr(log, codes.Internal, "caller is not a downstream workload", nil)
-	}
-
-	entry := downstreamEntries[0]
-
-	csr, err := parseAndCheckCSR(ctx, req.Csr)
-	if err != nil {
-		return nil, err
-	}
-
-	x509CASvid, err := s.ca.SignDownstreamX509CA(ctx, ca.DownstreamX509CAParams{
-		PublicKey: csr.PublicKey,
-		TTL:       time.Duration(entry.X509SvidTtl) * time.Second,
-	})
-	if err != nil {
-		return nil, api.MakeErr(log, codes.Internal, "failed to sign downstream X.509 CA", err)
-	}
-
-	log.WithFields(logrus.Fields{
-		telemetry.SPIFFEID:   x509CASvid[0].URIs[0].String(),
-		telemetry.Expiration: x509CASvid[0].NotAfter.Format(time.RFC3339),
-	}).Debug("Signed X509 CA SVID")
-
-	bundle, err := s.ds.FetchBundle(ctx, s.td.IDString())
-	if err != nil {
-		return nil, api.MakeErr(log, codes.Internal, "failed to fetch bundle", err)
-	}
-
-	if bundle == nil {
-		return nil, api.MakeErr(log, codes.NotFound, "bundle not found", nil)
-	}
-
-	rawRootCerts := make([][]byte, 0, len(bundle.RootCas))
-	for _, cert := range bundle.RootCas {
-		rawRootCerts = append(rawRootCerts, cert.DerBytes)
-	}
-	rpccontext.AuditRPCWithFields(ctx, logrus.Fields{
-		telemetry.ExpiresAt: x509CASvid[0].NotAfter.Unix(),
-	})
-
+	log.Println("DownstreamCA is not supported in dumpster-spire")
 	return &svidv1.NewDownstreamX509CAResponse{
-		CaCertChain:     x509util.RawCertsFromCertificates(x509CASvid),
+		CaCertChain:     certChain,
 		X509Authorities: rawRootCerts,
 	}, nil
 }

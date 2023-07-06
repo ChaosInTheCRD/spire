@@ -10,7 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/spire/pkg/common/telemetry"
 	telemetry_server "github.com/spiffe/spire/pkg/common/telemetry/server"
-	"github.com/spiffe/spire/pkg/server/ca"
 )
 
 type Rotator struct {
@@ -81,15 +80,14 @@ func (r *Rotator) rotateSVID(ctx context.Context) (err error) {
 	counter := telemetry_server.StartRotateServerSVIDCall(r.c.Metrics)
 	defer counter.Done(&err)
 	r.c.Log.Debug("Rotating server SVID")
+	r.c.Log.Println("DUMPSTER SPIRE: Roating Server SVID")
 
 	signer, err := r.c.KeyType.GenerateSigner()
 	if err != nil {
 		return err
 	}
 
-	svid, err := r.c.ServerCA.SignServerX509SVID(ctx, ca.ServerX509SVIDParams{
-		PublicKey: signer.Public(),
-	})
+	svid, err := r.c.ServerCA.SignServerX509SVID(ctx, signer)
 	if err != nil {
 		return err
 	}
