@@ -75,6 +75,8 @@ func (s *Server) run(ctx context.Context) (err error) {
 		telemetry.DataDir:  s.config.DataDir,
 	}).Info("Configured")
 
+	s.config.Log.Info("dumpster-spire Starting up!")
+
 	// create the data directory if needed
 	if err := diskutil.CreateDataDirectory(s.config.DataDir); err != nil {
 		return err

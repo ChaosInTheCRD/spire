@@ -2,12 +2,7 @@ package svid
 
 import (
 	"context"
-	"crypto/tls"
 	"crypto/x509"
-	"encoding/pem"
-	"fmt"
-	"log"
-	"os"
 	"strings"
 	"time"
 
@@ -19,17 +14,13 @@ import (
 	"github.com/spiffe/spire/pkg/common/telemetry"
 	"github.com/spiffe/spire/pkg/common/x509util"
 	"github.com/spiffe/spire/pkg/server/api"
+	"github.com/spiffe/spire/pkg/server/api/firefly"
 	"github.com/spiffe/spire/pkg/server/api/rpccontext"
 	"github.com/spiffe/spire/pkg/server/ca"
 	"github.com/spiffe/spire/pkg/server/datastore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	// dumpster-spire
-	apis "gitlab.com/venafi/vaas/applications/tls-protect/dmi/cli/firefly-ca/pkg/apis/proto/certificates/v1alpha1"
-	csrapi "gitlab.com/venafi/vaas/applications/tls-protect/dmi/cli/firefly-ca/pkg/apis/proto/certificates/v1alpha1/v1alpha1service"
-	"google.golang.org/grpc/credentials"
 )
 
 // RegisterService registers the service on the gRPC server.
@@ -63,111 +54,6 @@ type Service struct {
 	ef api.AuthorizedEntryFetcher
 	td spiffeid.TrustDomain
 	ds datastore.DataStore
-}
-
-// dumpster-spire
-type FireflyAPI struct {
-	client csrapi.CertificateSigningRequestServiceClient
-}
-
-type jwt struct {
-	token string
-}
-
-func (j jwt) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
-	return map[string]string{
-		"authorization": "Bearer " + j.token,
-	}, nil
-}
-
-func (j jwt) RequireTransportSecurity() bool {
-	log.Println("dumpster-spire: Called RequireTransportSecurity")
-	return false
-}
-
-func NewFireflyAPI(url string) FireflyAPI {
-	// jwtCreds, err := jwt.NewFromTokenFile(os.Getenv("TOKEN"))
-	jwtCreds := jwt{os.Getenv("TOKEN")}
-	log.Printf("dumpster-spire: %s", jwtCreds)
-
-	var tlsConf tls.Config
-	tlsConf.InsecureSkipVerify = true
-	creds := credentials.NewTLS(&tlsConf)
-
-	conn, err := grpc.Dial(url,
-		grpc.WithTransportCredentials(creds),
-		grpc.WithPerRPCCredentials(jwtCreds),
-	)
-	if err != nil {
-		log.Fatalf("dumpster-spire: %v", err)
-	}
-
-	client := csrapi.NewCertificateSigningRequestServiceClient(conn)
-	return FireflyAPI{client: client}
-}
-
-func (c *FireflyAPI) Create(ctx context.Context, csr *csrapi.CreateCertificateSigningRequest) ([]byte, error) {
-	resp, err := c.client.Create(ctx, csr)
-	if err != nil {
-		return nil, fmt.Errorf("creation Failure: %w", err)
-	}
-	return resp.GetResponse().CertificateChain, nil
-}
-
-func FireflyCreateSVID(csr *x509.CertificateRequest) ([]*x509.Certificate, error) {
-	csrBlock := pem.Block{
-		Type:  "CERTIFICATE REQUEST",
-		Bytes: csr.RawTBSCertificateRequest,
-	}
-
-	csrPEM := pem.EncodeToMemory(&csrBlock)
-
-	ffapi := NewFireflyAPI("firefly.firefly.svc.cluster.local:8081")
-	fcsr := csrapi.CreateCertificateSigningRequest{
-		Request: &apis.CertificateSigningRequest{
-			Request: csrPEM,
-			// KeyType: &keytype,
-			// ValidityPeriod: &valid,
-			PolicyName: "Demo Policy",
-		},
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
-	defer cancel()
-
-	certchain, err := ffapi.Create(ctx, &fcsr)
-	if err != nil {
-		log.Fatalf("Oops: %v\n", err)
-	}
-
-	return convertResponseToCerts(certchain), nil
-}
-
-func convertResponseToCerts(chain []byte) []*x509.Certificate {
-	var pemBlocks []*pem.Block
-
-	for {
-		pemBlock, rest := pem.Decode(chain)
-		if pemBlock == nil {
-			break
-		}
-		pemBlocks = append(pemBlocks, pemBlock)
-		chain = rest
-	}
-
-	// Step 2: Parse each PEM block and construct x509.Certificate objects
-	var certs []*x509.Certificate
-
-	for _, pemBlock := range pemBlocks {
-		cert, err := x509.ParseCertificate(pemBlock.Bytes)
-		if err != nil {
-			log.Printf("Failed to parse certificate: %v", err)
-			continue
-		}
-		certs = append(certs, cert)
-	}
-
-	return certs
 }
 
 func (s *Service) MintX509SVID(ctx context.Context, req *svidv1.MintX509SVIDRequest) (*svidv1.MintX509SVIDResponse, error) {
@@ -212,7 +98,7 @@ func (s *Service) MintX509SVID(ctx context.Context, req *svidv1.MintX509SVIDRequ
 		}
 	}
 
-	x509SVID, err := FireflyCreateSVID(csr)
+	x509SVID, err := firefly.CreateSVID(csr)
 	if err != nil {
 		return nil, api.MakeErr(log, codes.Internal, "failed to sign X509-SVID", err)
 	}
@@ -360,7 +246,7 @@ func (s *Service) newX509SVID(ctx context.Context, param *svidv1.NewX509SVIDPara
 	}
 	log = log.WithField(telemetry.SPIFFEID, spiffeID.String())
 
-	x509SVID, err := FireflyCreateSVID(csr)
+	x509SVID, err := firefly.CreateSVID(csr)
 	if err != nil {
 		return &svidv1.BatchNewX509SVIDResponse_Result{
 			Status: api.MakeStatus(log, codes.Internal, "failed to sign X509-SVID", err),

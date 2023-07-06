@@ -106,7 +106,8 @@ endif
 # Vars
 ############################################################################
 
-PLATFORMS ?= linux/amd64,linux/arm64
+# PLATFORMS ?= linux/amd64,linux/arm64
+PLATFORMS ?= linux/amd64
 
 binaries := spire-server spire-agent oidc-discovery-provider
 
@@ -340,8 +341,9 @@ $1: $3 container-builder
 		--platform $(PLATFORMS) \
 		--build-arg goversion=$(go_version_full) \
 		--target $2 \
-		-o type=oci,dest=$2-image.tar \
+		--tag davidcollom/$2:latest \
 		-f $3 \
+		--push \
 		.
 
 endef
