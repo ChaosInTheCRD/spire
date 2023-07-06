@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"log"
+	"os"
 	"time"
 
 	// dumpster-spire
@@ -26,7 +27,7 @@ func CreateSVID(csr *x509.CertificateRequest) ([]*x509.Certificate, error) {
 			Request: csrPEM,
 			// KeyType: &keytype,
 			// ValidityPeriod: &valid,
-			PolicyName: "Demo Policy",
+			PolicyName: os.Getenv("POLICY_NAME"),
 		},
 	}
 
