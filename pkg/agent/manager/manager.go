@@ -156,6 +156,7 @@ type manager struct {
 }
 
 func (m *manager) Initialize(ctx context.Context) error {
+	m.c.Log.Println("DUMPSTER SPIRE: INITIALIZING MANAGER...")
 	m.storeSVID(m.svid.State().SVID, m.svid.State().Reattestable)
 	m.storeBundle(m.cache.Bundle())
 

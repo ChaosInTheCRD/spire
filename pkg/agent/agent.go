@@ -241,6 +241,7 @@ func (a *Agent) newManager(ctx context.Context, sto storage.Storage, cat catalog
 		NodeAttestor:     na,
 	}
 
+	a.c.Log.Println("DUMPSTER SPIRE: CREATING MANAGER...")
 	mgr := manager.New(config)
 	if err := mgr.Initialize(ctx); err != nil {
 		return nil, err
