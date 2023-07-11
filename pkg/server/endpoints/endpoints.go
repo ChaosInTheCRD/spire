@@ -189,8 +189,14 @@ func (e *Endpoints) ListenAndServe(ctx context.Context) error {
 }
 
 func (e *Endpoints) createTCPServer(ctx context.Context, unaryInterceptor grpc.UnaryServerInterceptor, streamInterceptor grpc.StreamServerInterceptor) *grpc.Server {
+	// Get the SystemCertPool, continue with an empty pool on error
+	rootCAs, _ := x509.SystemCertPool()
+	if rootCAs == nil {
+		rootCAs = x509.NewCertPool()
+	}
 	tlsConfig := &tls.Config{ //nolint: gosec // False positive, getTLSConfig is setting MinVersion
 		GetConfigForClient: e.getTLSConfig(ctx),
+		RootCAs:            rootCAs,
 	}
 
 	return grpc.NewServer(
@@ -306,6 +312,14 @@ func (e *Endpoints) getTLSConfig(ctx context.Context) func(*tls.ClientHelloInfo)
 		spiffeTLSConfig.MinVersion = tls.VersionTLS12
 		spiffeTLSConfig.NextProtos = []string{http2.NextProtoTLS}
 		spiffeTLSConfig.VerifyPeerCertificate = e.serverSpiffeVerificationFunc(bundleSrc)
+
+		// Get the SystemCertPool, continue with an empty pool on error
+		rootCAs, _ := x509.SystemCertPool()
+		if rootCAs == nil {
+			spiffeTLSConfig.RootCAs = x509.NewCertPool()
+		} else {
+			spiffeTLSConfig.RootCAs = rootCAs
+		}
 
 		return spiffeTLSConfig, nil
 	}

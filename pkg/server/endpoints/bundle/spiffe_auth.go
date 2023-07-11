@@ -17,9 +17,15 @@ type spiffeAuth struct {
 }
 
 func (s *spiffeAuth) GetTLSConfig() *tls.Config {
+	// Get the SystemCertPool, continue with an empty pool on error
+	rootCAs, _ := x509.SystemCertPool()
+	if rootCAs == nil {
+		rootCAs = x509.NewCertPool()
+	}
 	return &tls.Config{
 		GetCertificate: s.getCertificate,
 		MinVersion:     tls.VersionTLS12,
+		RootCAs:        rootCAs,
 	}
 }
 
